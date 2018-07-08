@@ -11,7 +11,7 @@ Below are the properties that need to be passed in the configuration file:
 
 name | data type | required | description
 -----|-----------|----------|------------
-pqs.url | string | yes | Zookeeper quorum of the HBase cluster
+pqs.url | string | yes | Phoenix Query Server URL [http:\\host:8765]
 event.parser.class | string | yes | PhoenixRecordParser
 topics | string | yes | list of kafka topics.
 hbase.`<topicname>`.rowkey.columns | string | yes | The columns that represent the rowkey of the hbase table `<topicname>`
