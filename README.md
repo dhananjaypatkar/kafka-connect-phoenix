@@ -1,7 +1,7 @@
 # kafka-connect-phoenix
 
 ## Phoenix Sink Connector for Kafka-connect
-* Only supported message format is JSON with schema, make sure you configure kafka producer 
+* Only supported message format is JSON with schema, make sure you configure kafka producer with appropriate properties
 * This derives table columns based on the schema of the message received
 * Phoenix table must be pre-created and primary key column with name as "ROWKEY"
 
