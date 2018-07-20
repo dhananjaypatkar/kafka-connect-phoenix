@@ -1,3 +1,21 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ * <p>
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * <p>
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package io.kafka.connect.phoenix.config;
 
 import java.util.Map;
@@ -22,7 +40,6 @@ public class PhoenixSinkConfig extends AbstractConfig {
     public static final String EVENT_PARSER_CONFIG = "event.parser.class"; 
     public static String DEFAULT_HBASE_ROWKEY_DELIMITER = ",";
     public static String DEFAULT_HBASE_COLUMN_FAMILY = "data";
-    public static final String IDENTITY_COLUMN = "identity.column";
 
     /*
      * The configuration for a table "test" will be in the format
@@ -45,9 +62,6 @@ public class PhoenixSinkConfig extends AbstractConfig {
 
         CONFIG.define(EVENT_PARSER_CONFIG, ConfigDef.Type.STRING, ConfigDef.Importance.HIGH, "Event parser class " +
           "to parse the SinkRecord");
-        
-        CONFIG.define(IDENTITY_COLUMN, ConfigDef.Type.STRING, "PID",ConfigDef.Importance.LOW, 
-        		"Identity column to identify impacted entities, which needs to be processed further");
     }
 
     public PhoenixSinkConfig(Map<String, String> originals) {

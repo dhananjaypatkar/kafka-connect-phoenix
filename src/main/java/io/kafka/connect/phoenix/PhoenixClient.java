@@ -1,3 +1,21 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ * <p>
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * <p>
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package io.kafka.connect.phoenix;
 
 import java.sql.Connection;
@@ -71,14 +89,12 @@ public class PhoenixClient {
 						List<Field> fields = schema.fields();
 						for(int i=0; i<fields.size(); i++){
 							Field f = fields.get(i);
-							log.error("Setting field name "+f.name() + "Type "+f.schema().type().name());
 							Object value = r.get(f.name());
 							//log.error("field "+f.name() +" Going for value "+String.valueOf(value));
 							Schema sch = f.schema();
 							switch(sch.type()){
 							case STRING:{
 								if(value != null){
-									log.error("Setting STRING for "+sch.name() + " value "+value);
 									ps.setString(paramIndex++,String.valueOf(value));
 								}
 								else
@@ -87,7 +103,6 @@ public class PhoenixClient {
 							break;
 							case BOOLEAN:{
 								if(value != null){
-									log.error("Setting BOOLEAN for "+sch.name() + " value "+value);
 									ps.setBoolean(paramIndex++,Boolean.getBoolean(String.valueOf(value)));
 								}else{
 									ps.setNull(paramIndex++, Types.BOOLEAN);
@@ -96,7 +111,6 @@ public class PhoenixClient {
 							break;
 							case BYTES: {
 								if(value != null){
-									log.error("Setting BYTES for "+sch.name() + " value "+value);
 									ps.setBytes(paramIndex++, DatatypeConverter.parseBase64Binary((String) value));
 								}else{
 									ps.setNull(paramIndex++, Types.BINARY);
@@ -106,7 +120,6 @@ public class PhoenixClient {
 							case FLOAT32:
 							case FLOAT64: {
 									if(value != null){
-										log.error("Setting FLOAT for "+sch.name() + " value "+value);
 										ps.setDouble(paramIndex++, Double.valueOf(String.valueOf(value)));
 									}else{
 										ps.setNull(paramIndex++, Types.FLOAT);
@@ -119,14 +132,12 @@ public class PhoenixClient {
 							case INT64:{
 									if("org.apache.kafka.connect.data.Timestamp".equals(sch.name())){
 										if(value != null){
-											log.error("Setting int times for "+sch.name() + " value "+value);
 											ps.setTimestamp(paramIndex++,new Timestamp(Long.valueOf(String.valueOf(value))) );
 										}else{
 											ps.setNull(paramIndex++, Types.TIMESTAMP);
 										}
 									}else{
 										if(value != null){
-											log.error("Setting INT for "+sch.name() + " value "+value);
 											ps.setLong(paramIndex++, Long.valueOf(String.valueOf(value)));
 										}else{
 											ps.setNull(paramIndex++, Types.BIGINT);

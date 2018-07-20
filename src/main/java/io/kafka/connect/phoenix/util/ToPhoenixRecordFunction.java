@@ -1,3 +1,21 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ * <p>
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * <p>
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package io.kafka.connect.phoenix.util;
 
 import java.util.Map;
@@ -78,18 +96,6 @@ public class ToPhoenixRecordFunction implements Function<SinkRecord, Map<String,
     private String rowkeyDelimiter(final String table) {
         final String entry = String.format(PhoenixSinkConfig.TABLE_ROWKEY_DELIMITER_TEMPLATE, table);
         final String entryValue = sinkConfig.getPropertyValue(entry, PhoenixSinkConfig.DEFAULT_HBASE_ROWKEY_DELIMITER);
-        return entryValue;
-    }
-	
-    /**
-     * Returns the column family mapped in configuration for the table.  If not present, we use the
-     * default {@link PhoenixSinkConfig#DEFAULT_HBASE_COLUMN_FAMILY}
-     * @param table hbase table.
-     * @return
-     */
-    private String columnFamily(final String table) {
-        final String entry = String.format(PhoenixSinkConfig.TABLE_COLUMN_FAMILY_TEMPLATE, table);
-        final String entryValue = sinkConfig.getPropertyValue(entry, PhoenixSinkConfig.DEFAULT_HBASE_COLUMN_FAMILY);
         return entryValue;
     }
 

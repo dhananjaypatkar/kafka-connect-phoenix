@@ -13,15 +13,10 @@
 		<commons.lang.version>3.6</commons.lang.version>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<fasterxml.jackson.version>2.8.5</fasterxml.jackson.version>
-		<confluent.version>3.2.2-SNAPSHOT</confluent.version>
 		<junit.version>4.11</junit.version>
 		<kafka.version>0.10.2.1-cp1</kafka.version>
 		<junit.version>4.12</junit.version>
-		<easymock.version>3.0</easymock.version>
-		<powermock.version>1.6.2</powermock.version>
-		<derby.version>10.11.1.1</derby.version>
 		<commons-io.version>2.4</commons-io.version>
-		<mockito.version>1.10.19</mockito.version>
 		<slf4j.version>1.7.5</slf4j.version>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<confluent.maven.repo>http://packages.confluent.io/maven/</confluent.maven.repo>
@@ -143,6 +138,47 @@
 	
 	<build>
 		<plugins>
+			 <plugin>
+                <groupId>io.confluent</groupId>
+                <version>0.10.0</version>
+                <artifactId>kafka-connect-maven-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>kafka-connect</goal>
+                        </goals>
+                        <configuration>
+                            <title>Kafka Connect Phoenix</title>
+                            <documentationUrl>https://github.com/dhananjaypatkar/kafka-connect-phoenix/wiki/Kafka-Connect-Phoenix</documentationUrl>
+                            <description>
+								Kafka connect Sink Connector for Apache Phoenix [SQL layer on top of HBase]
+                            </description>
+                            <logo>phoenix-logo.png</logo>
+							<ownerUsername>dhananjaypatkar</ownerUsername>
+                            <ownerType>User</ownerType>
+                            <ownerName>Dhananjay Patkar</ownerName>
+                            <componentTypes>
+                                <componentType>sink</componentType>
+                            </componentTypes>
+                            <tags>
+                                <tag>Apache</tag>
+                                <tag>Phoenix</tag>
+                                <tag>Kafka Connect Sink</tag>
+                                <tag>Big Data</tag>
+                                <tag>HBase</tag>
+                            </tags>
+                            <requirements>
+                                <requirement>Apache Phoenix 4.7+</requirement>
+                            </requirements>
+                            <deliveryGuarantee>
+                                <deliveryGuarantee>atLeastOnce</deliveryGuarantee>
+                            </deliveryGuarantee>
+                            <confluentControlCenterIntegration>false</confluentControlCenterIntegration>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+		
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-compiler-plugin</artifactId>
