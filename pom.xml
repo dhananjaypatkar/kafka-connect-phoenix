@@ -149,11 +149,12 @@
                         </goals>
                         <configuration>
                             <title>Kafka Connect Phoenix</title>
+							<sourceUrl>https://github.com/dhananjaypatkar/kafka-connect-phoenix</sourceUrl>
                             <documentationUrl>https://github.com/dhananjaypatkar/kafka-connect-phoenix/wiki/Kafka-Connect-Phoenix</documentationUrl>
                             <description>
 								Kafka connect Sink Connector for Apache Phoenix [SQL layer on top of HBase]
                             </description>
-                            <logo>phoenix-logo.png</logo>
+                            <!--<logo>logos/phoenix-logo.png</logo>-->
 							<ownerUsername>dhananjaypatkar</ownerUsername>
                             <ownerType>User</ownerType>
                             <ownerName>Dhananjay Patkar</ownerName>
@@ -167,6 +168,9 @@
                                 <tag>Big Data</tag>
                                 <tag>HBase</tag>
                             </tags>
+							<supportedEncodings>
+								<supportedEncoding>json</supportedEncoding>
+							</supportedEncodings>
                             <requirements>
                                 <requirement>Apache Phoenix 4.7+</requirement>
                             </requirements>
@@ -174,6 +178,12 @@
                                 <deliveryGuarantee>atLeastOnce</deliveryGuarantee>
                             </deliveryGuarantee>
                             <confluentControlCenterIntegration>false</confluentControlCenterIntegration>
+							<licenses>
+							  <license>
+								<name>Apache License, Version 2.0</name>
+								<url>https://www.apache.org/licenses/LICENSE-2.0.txt</url>
+							  </license>
+							</licenses>
                         </configuration>
                     </execution>
                 </executions>
