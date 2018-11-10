@@ -46,9 +46,9 @@ public class PhoenixSinkConfig extends AbstractConfig {
      * hbase.test.rowkey.columns = id , ts
      * hbase.test.rowkey.delimiter = |
      */
-    public static final String TABLE_ROWKEY_COLUMNS_TEMPLATE = "hbase.%s.rowkey.columns";
-    public static final String TABLE_ROWKEY_DELIMITER_TEMPLATE = "hbase.%s.rowkey.delimiter";
-    public static final String TABLE_COLUMN_FAMILY_TEMPLATE = "hbase.%s.family";
+   // public static final String TABLE_ROWKEY_COLUMNS_TEMPLATE = "hbase.%s.rowkey.columns";
+   // public static final String TABLE_ROWKEY_DELIMITER_TEMPLATE = "hbase.%s.rowkey.delimiter";
+   // public static final String TABLE_COLUMN_FAMILY_TEMPLATE = "hbase.%s.family";
     
     public static final String HBASE_TABLE_NAME = "hbase.%s.table.name";
 
@@ -78,13 +78,13 @@ public class PhoenixSinkConfig extends AbstractConfig {
      */
     public void validate() {
         final String topicsAsStr = properties.get(SinkConnectorConfig.TOPICS_CONFIG);
-        final String[] topics = topicsAsStr.split(",");
-        for(String topic : topics) {
+        /*  final String[] topics = topicsAsStr.split(",");
+       for(String topic : topics) {
             String key = String.format(TABLE_ROWKEY_COLUMNS_TEMPLATE, topic);
             if(!properties.containsKey(key)) {
                 throw new ConfigException(String.format(" No rowkey has been configured for table [%s]", key));
             }
-        }
+        }*/
     }
 
     /**

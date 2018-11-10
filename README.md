@@ -15,5 +15,4 @@ name | data type | required | description
 pqs.url | string | yes | Phoenix Query Server URL [http:\\host:8765]
 event.parser.class | string | yes | PhoenixRecordParser
 topics | string | yes | list of kafka topics.
-hbase.`<topicname>`.rowkey.columns | string | yes | The columns that represent the rowkey of the hbase table `<topicname>`
-hbase.`<topicname>`.family | string | yes | Column family of the hbase table `<topicname>`.
+hbase.`<topicname>`.table.name | string | yes | Phoenix table name in which records needs to be saved for '<topicname>'

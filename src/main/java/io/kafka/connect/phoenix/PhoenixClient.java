@@ -25,6 +25,7 @@ import java.sql.Timestamp;
 import java.sql.Types;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import javax.xml.bind.DatatypeConverter;
 
@@ -48,6 +49,8 @@ public class PhoenixClient {
 	 */
 	private PhoenixConnectionManager connectionManager;
 	
+	private static final int COMMIT_INTERVAL  = 100;
+	
 	/**
 	 * @param connectionManager
 	 */
@@ -64,13 +67,14 @@ public class PhoenixClient {
 	 */
 	private String formUpsert(final Schema schema, final String tableName,final String cf){
 		String[] namespace= tableName.split("\\.");
-		StringBuilder query = new StringBuilder("upsert into \""+namespace[0] +"\".\""+ namespace[1]+"\"(ROWKEY");
-		StringBuilder query_part2 = new StringBuilder(") values (?");
-		schema.fields().stream().forEach(f -> {query.append(","+"\""+cf+"info"+"\"."+"\"" +f.name()+"\""); query_part2.append(",?");} );
+		StringBuilder query = new StringBuilder("upsert into \""+namespace[0] +"\".\""+ namespace[1]+"\"(");
+		StringBuilder query_part2 = new StringBuilder(") values (");
+		schema.fields().stream().forEach(f -> {query.append("\"" +f.name()+"\","); query_part2.append("?,");} );
+		query.deleteCharAt(query.lastIndexOf(","));
+		query_part2.deleteCharAt(query_part2.lastIndexOf(","));
 		query.append(query_part2).append(")");
-		log.error("Query formed "+query);
-		return query.toString();
-	}
+		log.debug("Query formed "+query);
+		return query.toString();}
 	
 	
 	public void execute(final String tableName,final Schema schema,List<Map<String,Object>> records){
@@ -79,6 +83,7 @@ public class PhoenixClient {
 			final PreparedStatement ps = connection.prepareStatement(formUpsert( schema, tableName,cf))
 			){
 				connection.setAutoCommit(false);
+				final AtomicInteger rowCounter = new AtomicInteger(0);
 				records.stream().forEach(r ->{
 				int paramIndex = 1;
 					try {
@@ -148,6 +153,12 @@ public class PhoenixClient {
 							}
 						}
 						ps.executeUpdate();
+						
+						if(rowCounter.incrementAndGet()%COMMIT_INTERVAL == 0){
+							connection.commit();
+							rowCounter.set(0);
+						}
+						
 					} catch (SQLException e) {
 						throw new RuntimeException(e);
 					}
