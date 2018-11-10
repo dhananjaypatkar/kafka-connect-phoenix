@@ -54,15 +54,15 @@ public class ToPhoenixRecordFunction implements Function<SinkRecord, Map<String,
 		try {
 			Preconditions.checkNotNull(sinkRecord);
 			final String table = sinkRecord.topic();
-			final String delimiter = rowkeyDelimiter(sinkRecord.topic());
+			//final String delimiter = rowkeyDelimiter(sinkRecord.topic());
 			final Map<String, Object> valuesMap = this.eventParser.parseValueObject(sinkRecord);
-			final Map<String, Object> keysMap = this.eventParser.parseKeyObject(sinkRecord);
+			//final Map<String, Object> keysMap = this.eventParser.parseKeyObject(sinkRecord);
 
-			valuesMap.putAll(keysMap);
-			final String[] rowkeyColumns = rowkeyColumns(table);
-			final String rowkey = toRowKey(valuesMap, rowkeyColumns, delimiter);
+			//valuesMap.putAll(keysMap);
+			//final String[] rowkeyColumns = rowkeyColumns(table);
+			//final String rowkey = toRowKey(valuesMap, rowkeyColumns, delimiter);
 
-			valuesMap.put("ROWKEY", rowkey);
+			//valuesMap.put("ROWKEY", rowkey);
 			
 			return valuesMap;
 		} catch (Exception e) {
@@ -81,11 +81,11 @@ public class ToPhoenixRecordFunction implements Function<SinkRecord, Map<String,
      * @param table
      * @return
      */
-    private String[] rowkeyColumns(final String table) {
+   /* private String[] rowkeyColumns(final String table) {
         final String entry = String.format(PhoenixSinkConfig.TABLE_ROWKEY_COLUMNS_TEMPLATE, table);
         final String entryValue = sinkConfig.getPropertyValue(entry);
         return entryValue.split(",");
-    }
+    }*/
 
     /**
      * Returns the delimiter for a table. If nothing is configured in properties,
@@ -93,11 +93,11 @@ public class ToPhoenixRecordFunction implements Function<SinkRecord, Map<String,
      * @param table hbase table.
      * @return
      */
-    private String rowkeyDelimiter(final String table) {
+    /*private String rowkeyDelimiter(final String table) {
         final String entry = String.format(PhoenixSinkConfig.TABLE_ROWKEY_DELIMITER_TEMPLATE, table);
         final String entryValue = sinkConfig.getPropertyValue(entry, PhoenixSinkConfig.DEFAULT_HBASE_ROWKEY_DELIMITER);
         return entryValue;
-    }
+    }*/
 
     /**
      * Returns the name space based table for given topic name.
