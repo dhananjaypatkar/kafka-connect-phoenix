@@ -75,8 +75,10 @@ public class PhoenixSinkTask extends SinkTask {
                   .collect(toList())));
 
       toPhoenixRecords.entrySet().forEach(e -> {
-        this.phoenixClient.execute(e.getKey().getTableName(), e.getKey().getSchema(),
-            toPhoenixRecordFunction.rowkeyColumns(e.getKey().getTableName()), e.getValue());
+        final String tableName = e.getKey().getTableName();
+        this.phoenixClient.execute(tableName, e.getKey().getSchema(),
+            toPhoenixRecordFunction.rowkeyColumns(tableName), e.getValue(),
+            toPhoenixRecordFunction.tableSchemaFile(tableName));
       });
     } catch (Exception e) {
       log.error("Exception while persisting records" + records, e);

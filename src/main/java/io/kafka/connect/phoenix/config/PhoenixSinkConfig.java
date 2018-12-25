@@ -33,6 +33,7 @@ public class PhoenixSinkConfig extends AbstractConfig {
   public static final String EVENT_PARSER_CONFIG = "event.parser.class";
   public static final String TABLE_ROWKEY_COLUMNS_TEMPLATE = "hbase.%s.rowkey.columns";
   public static final String HBASE_TABLE_NAME = "hbase.%s.table.name";
+  public static final String HBASE_TABLE_SCHAME_FILE = "hbase.%s.table.schema.file";
 
   public static ConfigDef CONFIG = new ConfigDef();
   private Map<String, String> properties;

@@ -16,17 +16,22 @@
 package io.kafka.connect.phoenix;
 
 import io.kafka.connect.phoenix.util.DebeziumConstants;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.sql.Types;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import javax.xml.bind.DatatypeConverter;
+import org.apache.commons.collections.map.HashedMap;
 import org.apache.kafka.connect.data.Field;
 import org.apache.kafka.connect.data.Schema;
 import org.slf4j.Logger;
@@ -37,13 +42,14 @@ import org.slf4j.LoggerFactory;
  */
 public class PhoenixClient {
 
-
   private static final Logger log = LoggerFactory.getLogger(PhoenixClient.class);
 
   /**
    *
    */
   private PhoenixConnectionManager connectionManager;
+
+  private Map<String, List<String>> oldTableFieldNames;
 
   private static final int COMMIT_INTERVAL = 100;
 
@@ -54,20 +60,18 @@ public class PhoenixClient {
     this.connectionManager = connectionManager;
   }
 
-
   /**
    *
    */
   public String formUpsert(final Schema schema, final String tableName) {
     StringBuilder query = new StringBuilder("upsert into ");
-    query.append(String.join(".", Arrays.stream(tableName.split("\\.")).map(n -> "\"" + n + "\"")
-        .collect(Collectors.toList())));
+    query.append(convertTableName(tableName));
     query.append(" (");
-    query.append(String.join(",", schema.fields().stream().map(f -> "\"" + f.name() + "\"")
-        .collect(Collectors.toList())));
+    query.append(schema.fields().stream().map(f -> "\"" + f.name() + "\"")
+        .collect(Collectors.joining(",")));
     query.append(") values (");
-    query.append(String.join(",", schema.fields().stream().map(f -> "?")
-        .collect(Collectors.toList())));
+    query.append(schema.fields().stream().map(f -> "?")
+        .collect(Collectors.joining(",")));
     query.append(")");
     log.debug("Query formed " + query);
     return query.toString();
@@ -75,13 +79,101 @@ public class PhoenixClient {
 
   public String formDelete(final String tableName, String[] rowkeyColumns) {
     StringBuilder query = new StringBuilder("delete from ");
-    query.append(String.join(".", Arrays.stream(tableName.split("\\.")).map(n -> "\"" + n + "\"")
-        .collect(Collectors.toList())));
+    query.append(convertTableName(tableName));
     query.append(" where ");
-    query.append(String.join(" and ", Arrays.stream(rowkeyColumns).map(c -> "\"" + c + "\" = ?")
-        .collect(Collectors.toList())));
+    query.append(Arrays.stream(rowkeyColumns).map(c -> "\"" + c + "\" = ?")
+        .collect(Collectors.joining(" and ")));
     log.debug("Query formed " + query);
     return query.toString();
+  }
+
+  public String formCreate(final String tableName, final Schema schema, String[] rowkeyColumns) {
+    StringBuilder query = new StringBuilder("create table if not exists ");
+    query.append(
+        convertTableName(tableName));
+    query.append(" (");
+    query.append(schema.fields().stream()
+        .map(f -> "\"" + f.name() + "\" " + convertToPhoenixType(f))
+        .collect(Collectors.joining(",")));
+    query.append(",constraint pk primary key (");
+    query.append(Arrays.stream(rowkeyColumns).map(k -> "\"" + k + "\"")
+        .collect(Collectors.joining(",")));
+    query.append(")");
+    query.append(")");
+    log.debug("Query formed " + query);
+    return query.toString();
+  }
+
+  public String formDropColumn(final String tableName, String fieldName) {
+    StringBuilder query = new StringBuilder("alter table ");
+    query.append(convertTableName(tableName));
+    query.append(" drop column ");
+    query.append("\"" + fieldName + "\"");
+    log.debug("Query formed " + query);
+    return query.toString();
+  }
+
+  public String formAddColumn(final String tableName, Field field) {
+    StringBuilder query = new StringBuilder("alter table ");
+    query.append(convertTableName(tableName));
+    query.append(" add ");
+    query.append("\"" + field.name() + "\"");
+    query.append(" ");
+    query.append(convertToPhoenixType(field));
+    log.debug("Query formed " + query);
+    return query.toString();
+  }
+
+  private String convertTableName(String tableName) {
+    return Arrays.stream(tableName.split("\\.")).map(n -> "\"" + n + "\"")
+        .collect(Collectors.joining("."));
+  }
+
+  private String convertToPhoenixType(Field f) {
+    String fType;
+    Schema fSchema = f.schema();
+    switch (fSchema.type()) {
+      case STRING: {
+        fType = "varchar";
+        break;
+      }
+      case BOOLEAN: {
+        fType = "boolean";
+        break;
+      }
+      case BYTES: {
+        fType = "varbinary";
+        break;
+      }
+      case FLOAT32:
+      case FLOAT64: {
+        fType = "double";
+        break;
+      }
+      case INT8: {
+        fType = "tinyint";
+        break;
+      }
+      case INT16: {
+        fType = "smallint";
+        break;
+      }
+      case INT32: {
+        fType = "integer";
+        break;
+      }
+      case INT64: {
+        if (org.apache.kafka.connect.data.Timestamp.LOGICAL_NAME.equals(fSchema.name())) {
+          fType = "timestamp";
+        } else {
+          fType = "bigint";
+        }
+        break;
+      }
+      default:
+        throw new RuntimeException("unknown type");
+    }
+    return fType;
   }
 
   private int bindValue(PreparedStatement ps1, int paramIndex, Object value, Field f)
@@ -148,11 +240,102 @@ public class PhoenixClient {
     return paramIndex;
   }
 
+  private void updateTableFieldNames(String tableName, String schemaFile, List<String> oldNames) {
+    oldTableFieldNames.put(tableName, oldNames);
+    try {
+      Files.write(Paths.get(schemaFile),
+          oldNames.stream().collect(Collectors.joining(",")).getBytes());
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
+  }
+
   public void execute(final String tableName, final Schema schema, String[] rowkeyColumns,
-      List<Map<String, Object>> records) {
+      List<Map<String, Object>> records, final String schemaFile) {
     final Schema rowSchema = schema.field(DebeziumConstants.FIELD_NAME_BEFORE).schema();
+    //结构
+    final List<String> oldNames = new ArrayList<>();
+    if (oldTableFieldNames == null || oldTableFieldNames.isEmpty() ||
+        !oldTableFieldNames.containsKey(tableName)) {
+      try {
+        String oldFiledNames = new String(Files.readAllBytes(Paths.get(schemaFile)));
+        if (oldFiledNames != null && oldFiledNames.length() > 0) {
+          oldNames.addAll(Arrays.asList(oldFiledNames.split(",")));
+          if (oldTableFieldNames == null) {
+            oldTableFieldNames = new HashedMap();
+          }
+          oldTableFieldNames.put(tableName, oldNames);
+        }
+      } catch (IOException e) {
+        throw new RuntimeException(e);
+      }
+    } else {
+      oldNames.addAll(oldTableFieldNames.get(tableName));
+    }
+    if (oldNames.size() == 0) {
+      try (final Connection connection = this.connectionManager.getConnection();
+          final PreparedStatement schemaPreSt =
+              connection.prepareStatement(formCreate(tableName, rowSchema, rowkeyColumns))) {
+        connection.setAutoCommit(false);
+        schemaPreSt.execute();
+        connection.commit();
+      } catch (SQLException e) {
+        throw new RuntimeException(e);
+      }
+      updateTableFieldNames(tableName, schemaFile,
+          rowSchema.fields().stream().map(Field::name).collect(Collectors.toList()));
+    } else {
+      List<String> newNames = rowSchema.fields().stream().map(Field::name)
+          .collect(Collectors.toList());
+      log.debug("old names: {}", oldNames);
+      log.debug("new names: {}", newNames);
+      List<String> dropNames = oldNames.stream().filter(n -> !newNames.contains(n))
+          .collect(Collectors.toList());
+      if (dropNames.size() > 0) {
+        log.debug("drop names: {}", dropNames);
+        try (final Connection connection = this.connectionManager.getConnection()) {
+          connection.setAutoCommit(false);
+          for (int i = 0; i < dropNames.size(); i++) {
+            try (final PreparedStatement schemaPreSt =
+                connection.prepareStatement(formDropColumn(tableName, dropNames.get(i)))) {
+              schemaPreSt.execute();
+            } catch (SQLException e) {
+              throw new RuntimeException(e);
+            }
+          }
+          connection.commit();
+        } catch (SQLException e) {
+          throw new RuntimeException(e);
+        }
+      }
+      List<Field> addFields = rowSchema.fields().stream()
+          .filter(f -> !oldNames.contains(f.name()))
+          .collect(Collectors.toList());
+      if (addFields.size() > 0) {
+        log.debug("add fields: {}", addFields);
+        try (final Connection connection = this.connectionManager.getConnection()) {
+          connection.setAutoCommit(false);
+          for (int i = 0; i < addFields.size(); i++) {
+            try (final PreparedStatement schemaPreSt =
+                connection.prepareStatement(formAddColumn(tableName, addFields.get(i)))) {
+              schemaPreSt.execute();
+            } catch (SQLException e) {
+              throw new RuntimeException(e);
+            }
+          }
+          connection.commit();
+        } catch (SQLException e) {
+          throw new RuntimeException(e);
+        }
+      }
+      if (dropNames.size() > 0 || addFields.size() > 0) {
+        updateTableFieldNames(tableName, schemaFile, newNames);
+      }
+    }
+    //增删查
     try (final Connection connection = this.connectionManager.getConnection();
-        final PreparedStatement upsertPreSt = connection.prepareStatement(formUpsert(rowSchema, tableName));
+        final PreparedStatement upsertPreSt = connection
+            .prepareStatement(formUpsert(rowSchema, tableName));
         final PreparedStatement deletePreSt = connection
             .prepareStatement(formDelete(tableName, rowkeyColumns))
     ) {
@@ -163,7 +346,8 @@ public class PhoenixClient {
           String op = String.valueOf(r.get(DebeziumConstants.FIELD_NAME_OP));
           if (DebeziumConstants.OPERATION_DELETE.equals(op)) {
             int paramIndex = 1;
-            Map<String, Object> r1 = (Map<String, Object>) r.get(DebeziumConstants.FIELD_NAME_BEFORE);
+            Map<String, Object> r1 = (Map<String, Object>) r
+                .get(DebeziumConstants.FIELD_NAME_BEFORE);
             for (int i = 0; i < rowkeyColumns.length; i++) {
               String rowkeyColumn = rowkeyColumns[i];
               Object value = r1.get(rowkeyColumn);
@@ -173,7 +357,8 @@ public class PhoenixClient {
             deletePreSt.executeUpdate();
           } else {
             int paramIndex = 1;
-            Map<String, Object> r1 = (Map<String, Object>) r.get(DebeziumConstants.FIELD_NAME_AFTER);
+            Map<String, Object> r1 = (Map<String, Object>) r
+                .get(DebeziumConstants.FIELD_NAME_AFTER);
             List<Field> fields = rowSchema.fields();
             for (int i = 0; i < fields.size(); i++) {
               Field f = fields.get(i);

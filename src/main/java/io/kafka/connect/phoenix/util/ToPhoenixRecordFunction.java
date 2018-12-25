@@ -81,4 +81,10 @@ public class ToPhoenixRecordFunction implements Function<SinkRecord, Map<String,
   public String tableName(final String topic) {
     return sinkConfig.getPropertyValue(String.format(PhoenixSinkConfig.HBASE_TABLE_NAME, topic));
   }
+
+  public String tableSchemaFile(final String table) {
+    final String entry = String.format(PhoenixSinkConfig.HBASE_TABLE_SCHAME_FILE, table);
+    final String entryValue = sinkConfig.getPropertyValue(entry);
+    return entryValue;
+  }
 }
