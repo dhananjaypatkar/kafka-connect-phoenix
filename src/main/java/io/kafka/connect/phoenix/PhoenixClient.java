@@ -22,6 +22,7 @@ import java.nio.file.Paths;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
+import java.sql.Statement;
 import java.sql.Timestamp;
 import java.sql.Types;
 import java.util.ArrayList;
@@ -34,6 +35,7 @@ import javax.xml.bind.DatatypeConverter;
 import org.apache.commons.collections.map.HashedMap;
 import org.apache.kafka.connect.data.Field;
 import org.apache.kafka.connect.data.Schema;
+import org.apache.kafka.connect.data.Schema.Type;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -58,6 +60,7 @@ public class PhoenixClient {
    */
   public PhoenixClient(final PhoenixConnectionManager connectionManager) {
     this.connectionManager = connectionManager;
+    this.oldTableFieldNames = new HashedMap();
   }
 
   /**
@@ -120,6 +123,19 @@ public class PhoenixClient {
     query.append("\"" + field.name() + "\"");
     query.append(" ");
     query.append(convertToPhoenixType(field));
+    Schema schema = field.schema();
+    Object defaultValue = schema.defaultValue();
+    if (defaultValue != null) {
+      query.append(" ");
+      query.append("default ");
+      if (Type.STRING.equals(schema.type())) {
+        query.append("'");
+        query.append(defaultValue);
+        query.append("'");
+      } else {
+        query.append(defaultValue);
+      }
+    }
     log.debug("Query formed " + query);
     return query.toString();
   }
@@ -176,41 +192,41 @@ public class PhoenixClient {
     return fType;
   }
 
-  private int bindValue(PreparedStatement ps1, int paramIndex, Object value, Field f)
+  private int bindValue(PreparedStatement preparedStatement, int paramIndex, Object value, Field f)
       throws SQLException {
     Schema sch = f.schema();
     switch (sch.type()) {
       case STRING: {
         if (value != null) {
-          ps1.setString(paramIndex++, String.valueOf(value));
+          preparedStatement.setString(paramIndex++, String.valueOf(value));
         } else {
-          ps1.setNull(paramIndex++, Types.VARCHAR);
+          preparedStatement.setNull(paramIndex++, Types.VARCHAR);
         }
       }
       break;
       case BOOLEAN: {
         if (value != null) {
-          ps1.setBoolean(paramIndex++, Boolean.getBoolean(String.valueOf(value)));
+          preparedStatement.setBoolean(paramIndex++, Boolean.getBoolean(String.valueOf(value)));
         } else {
-          ps1.setNull(paramIndex++, Types.BOOLEAN);
+          preparedStatement.setNull(paramIndex++, Types.BOOLEAN);
         }
       }
       break;
       case BYTES: {
         if (value != null) {
-          ps1.setBytes(paramIndex++,
+          preparedStatement.setBytes(paramIndex++,
               DatatypeConverter.parseBase64Binary((String) value));
         } else {
-          ps1.setNull(paramIndex++, Types.BINARY);
+          preparedStatement.setNull(paramIndex++, Types.BINARY);
         }
       }
       break;
       case FLOAT32:
       case FLOAT64: {
         if (value != null) {
-          ps1.setDouble(paramIndex++, Double.valueOf(String.valueOf(value)));
+          preparedStatement.setDouble(paramIndex++, Double.valueOf(String.valueOf(value)));
         } else {
-          ps1.setNull(paramIndex++, Types.FLOAT);
+          preparedStatement.setNull(paramIndex++, Types.FLOAT);
         }
       }
       break;
@@ -220,16 +236,16 @@ public class PhoenixClient {
       case INT64: {
         if (org.apache.kafka.connect.data.Timestamp.LOGICAL_NAME.equals(sch.name())) {
           if (value != null) {
-            ps1.setTimestamp(paramIndex++,
+            preparedStatement.setTimestamp(paramIndex++,
                 new Timestamp(Long.valueOf(String.valueOf(value))));
           } else {
-            ps1.setNull(paramIndex++, Types.TIMESTAMP);
+            preparedStatement.setNull(paramIndex++, Types.TIMESTAMP);
           }
         } else {
           if (value != null) {
-            ps1.setLong(paramIndex++, Long.valueOf(String.valueOf(value)));
+            preparedStatement.setLong(paramIndex++, Long.valueOf(String.valueOf(value)));
           } else {
-            ps1.setNull(paramIndex++, Types.BIGINT);
+            preparedStatement.setNull(paramIndex++, Types.BIGINT);
           }
         }
       }
@@ -253,86 +269,7 @@ public class PhoenixClient {
   public void execute(final String tableName, final Schema schema, String[] rowkeyColumns,
       List<Map<String, Object>> records, final String schemaFile) {
     final Schema rowSchema = schema.field(DebeziumConstants.FIELD_NAME_BEFORE).schema();
-    //结构
-    final List<String> oldNames = new ArrayList<>();
-    if (oldTableFieldNames == null || oldTableFieldNames.isEmpty() ||
-        !oldTableFieldNames.containsKey(tableName)) {
-      try {
-        String oldFiledNames = new String(Files.readAllBytes(Paths.get(schemaFile)));
-        if (oldFiledNames != null && oldFiledNames.length() > 0) {
-          oldNames.addAll(Arrays.asList(oldFiledNames.split(",")));
-          if (oldTableFieldNames == null) {
-            oldTableFieldNames = new HashedMap();
-          }
-          oldTableFieldNames.put(tableName, oldNames);
-        }
-      } catch (IOException e) {
-        throw new RuntimeException(e);
-      }
-    } else {
-      oldNames.addAll(oldTableFieldNames.get(tableName));
-    }
-    if (oldNames.size() == 0) {
-      try (final Connection connection = this.connectionManager.getConnection();
-          final PreparedStatement schemaPreSt =
-              connection.prepareStatement(formCreate(tableName, rowSchema, rowkeyColumns))) {
-        connection.setAutoCommit(false);
-        schemaPreSt.execute();
-        connection.commit();
-      } catch (SQLException e) {
-        throw new RuntimeException(e);
-      }
-      updateTableFieldNames(tableName, schemaFile,
-          rowSchema.fields().stream().map(Field::name).collect(Collectors.toList()));
-    } else {
-      List<String> newNames = rowSchema.fields().stream().map(Field::name)
-          .collect(Collectors.toList());
-      log.debug("old names: {}", oldNames);
-      log.debug("new names: {}", newNames);
-      List<String> dropNames = oldNames.stream().filter(n -> !newNames.contains(n))
-          .collect(Collectors.toList());
-      if (dropNames.size() > 0) {
-        log.debug("drop names: {}", dropNames);
-        try (final Connection connection = this.connectionManager.getConnection()) {
-          connection.setAutoCommit(false);
-          for (int i = 0; i < dropNames.size(); i++) {
-            try (final PreparedStatement schemaPreSt =
-                connection.prepareStatement(formDropColumn(tableName, dropNames.get(i)))) {
-              schemaPreSt.execute();
-            } catch (SQLException e) {
-              throw new RuntimeException(e);
-            }
-          }
-          connection.commit();
-        } catch (SQLException e) {
-          throw new RuntimeException(e);
-        }
-      }
-      List<Field> addFields = rowSchema.fields().stream()
-          .filter(f -> !oldNames.contains(f.name()))
-          .collect(Collectors.toList());
-      if (addFields.size() > 0) {
-        log.debug("add fields: {}", addFields);
-        try (final Connection connection = this.connectionManager.getConnection()) {
-          connection.setAutoCommit(false);
-          for (int i = 0; i < addFields.size(); i++) {
-            try (final PreparedStatement schemaPreSt =
-                connection.prepareStatement(formAddColumn(tableName, addFields.get(i)))) {
-              schemaPreSt.execute();
-            } catch (SQLException e) {
-              throw new RuntimeException(e);
-            }
-          }
-          connection.commit();
-        } catch (SQLException e) {
-          throw new RuntimeException(e);
-        }
-      }
-      if (dropNames.size() > 0 || addFields.size() > 0) {
-        updateTableFieldNames(tableName, schemaFile, newNames);
-      }
-    }
-    //增删查
+    updateSchema(tableName, rowkeyColumns, schemaFile, rowSchema);
     try (final Connection connection = this.connectionManager.getConnection();
         final PreparedStatement upsertPreSt = connection
             .prepareStatement(formUpsert(rowSchema, tableName));
@@ -346,8 +283,8 @@ public class PhoenixClient {
           String op = String.valueOf(r.get(DebeziumConstants.FIELD_NAME_OP));
           if (DebeziumConstants.OPERATION_DELETE.equals(op)) {
             int paramIndex = 1;
-            Map<String, Object> r1 = (Map<String, Object>) r
-                .get(DebeziumConstants.FIELD_NAME_BEFORE);
+            Map<String, Object> r1 =
+                (Map<String, Object>) r.get(DebeziumConstants.FIELD_NAME_BEFORE);
             for (int i = 0; i < rowkeyColumns.length; i++) {
               String rowkeyColumn = rowkeyColumns[i];
               Object value = r1.get(rowkeyColumn);
@@ -379,6 +316,68 @@ public class PhoenixClient {
       connection.commit();
     } catch (SQLException e) {
       throw new RuntimeException(e);
+    }
+  }
+
+  private void updateSchema(String tableName, String[] rowkeyColumns, String schemaFile,
+      Schema rowSchema) {
+    final List<String> oldNames = new ArrayList<>();
+    if (oldTableFieldNames.size() == 0 || !oldTableFieldNames.containsKey(tableName)) {
+      try {
+        String oldFiledNames = new String(Files.readAllBytes(Paths.get(schemaFile)));
+        if (oldFiledNames != null && oldFiledNames.length() > 0) {
+          oldNames.addAll(Arrays.asList(oldFiledNames.split(",")));
+          oldTableFieldNames.put(tableName, oldNames);
+        }
+      } catch (IOException e) {
+        throw new RuntimeException(e);
+      }
+    } else {
+      oldNames.addAll(oldTableFieldNames.get(tableName));
+    }
+    if (oldNames.size() == 0) {
+      try (final Connection connection = this.connectionManager.getConnection();
+          final Statement schemaPreSt = connection.createStatement()) {
+        connection.setAutoCommit(false);
+        schemaPreSt.execute(formCreate(tableName, rowSchema, rowkeyColumns));
+        updateTableFieldNames(tableName, schemaFile,
+            rowSchema.fields().stream().map(Field::name).collect(Collectors.toList()));
+        connection.commit();
+      } catch (SQLException e) {
+        throw new RuntimeException(e);
+      }
+    } else {
+      List<String> newNames = rowSchema.fields().stream().map(Field::name)
+          .collect(Collectors.toList());
+      log.debug("old names: {}", oldNames);
+      log.debug("new names: {}", newNames);
+      List<String> dropNames = oldNames.stream().filter(n -> !newNames.contains(n))
+          .collect(Collectors.toList());
+      List<Field> addFields = rowSchema.fields().stream()
+          .filter(f -> !oldNames.contains(f.name()))
+          .collect(Collectors.toList());
+      if (dropNames.size() > 0 || addFields.size() > 0) {
+        try (final Connection connection = this.connectionManager.getConnection();
+            final Statement schemaSt = connection.createStatement()) {
+          connection.setAutoCommit(false);
+          if (dropNames.size() > 0) {
+            log.debug("drop names: {}", dropNames);
+            for (int i = 0; i < dropNames.size(); i++) {
+              schemaSt.execute(formDropColumn(tableName, dropNames.get(i)));
+            }
+          }
+          if (addFields.size() > 0) {
+            log.debug("add fields: {}", addFields);
+            for (int i = 0; i < addFields.size(); i++) {
+              schemaSt.execute(formAddColumn(tableName, addFields.get(i)));
+            }
+          }
+          updateTableFieldNames(tableName, schemaFile, newNames);
+          connection.commit();
+        } catch (SQLException e) {
+          throw new RuntimeException(e);
+        }
+      }
     }
   }
 }
