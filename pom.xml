@@ -13,16 +13,15 @@
 		<commons.lang.version>3.6</commons.lang.version>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<fasterxml.jackson.version>2.10.0</fasterxml.jackson.version>
-		<junit.version>4.11</junit.version>
 		<kafka.version>2.1.1</kafka.version>
-		<junit.version>4.12</junit.version>
+		<junit.version>4.13.1</junit.version>
 		<commons-io.version>2.4</commons-io.version>
 		<slf4j.version>1.7.5</slf4j.version>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<confluent.maven.repo>http://packages.confluent.io/maven/</confluent.maven.repo>
 		<hbase.version>2.1.6</hbase.version>
-		<hadoop.version>2.6.0</hadoop.version>
-		<hadoop.mvn.version>2.7.1</hadoop.mvn.version>
+		<hadoop.version>3.1.1</hadoop.version>
+		<hadoop.mvn.version>3.1.1</hadoop.mvn.version>
 		<guava.version>16.0</guava.version>
 		<java.version>1.8</java.version>
 		<hbase.phoenix.client.version>5.0.0-HBase-2.0</hbase.phoenix.client.version>
