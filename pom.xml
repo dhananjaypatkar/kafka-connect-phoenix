@@ -12,20 +12,20 @@
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<commons.lang.version>3.6</commons.lang.version>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-		<fasterxml.jackson.version>2.8.5</fasterxml.jackson.version>
+		<fasterxml.jackson.version>2.10.0</fasterxml.jackson.version>
 		<junit.version>4.11</junit.version>
-		<kafka.version>0.10.2.1-cp1</kafka.version>
+		<kafka.version>2.1.1</kafka.version>
 		<junit.version>4.12</junit.version>
 		<commons-io.version>2.4</commons-io.version>
 		<slf4j.version>1.7.5</slf4j.version>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<confluent.maven.repo>http://packages.confluent.io/maven/</confluent.maven.repo>
-		<hbase.version>1.3.0</hbase.version>
+		<hbase.version>2.1.6</hbase.version>
 		<hadoop.version>2.6.0</hadoop.version>
 		<hadoop.mvn.version>2.7.1</hadoop.mvn.version>
 		<guava.version>16.0</guava.version>
 		<java.version>1.8</java.version>
-		<hbase.phoenix.client.version>4.7.0-HBase-1.1</hbase.phoenix.client.version>
+		<hbase.phoenix.client.version>5.0.0-HBase-2.0</hbase.phoenix.client.version>
 	</properties>
 	<dependencies>
 		
@@ -49,7 +49,7 @@
 		</dependency>
 		<dependency>
 			<groupId>org.apache.kafka</groupId>
-			<artifactId>kafka_2.10</artifactId>
+			<artifactId>kafka_2.11</artifactId>
 			<version>${kafka.version}</version>
 			<classifier>test</classifier>
 		</dependency>
@@ -80,57 +80,20 @@
 
 		<dependency>
 			<groupId>org.apache.kafka</groupId>
-			<artifactId>kafka_2.10</artifactId>
+			<artifactId>kafka_2.11</artifactId>
 			<version>${kafka.version}</version>
 			<scope>provided</scope>
 		</dependency>
-
+		
 		<dependency>
 			<groupId>org.apache.hbase</groupId>
-			<artifactId>hbase-server</artifactId>
+			<artifactId>hbase-shaded-client</artifactId>
 			<version>${hbase.version}</version>
-			<scope>provided</scope>
-			<exclusions>
-				<exclusion>
-					<artifactId>avro</artifactId>
-					<groupId>org.apache.avro</groupId>
-				</exclusion>
-			</exclusions>
-		</dependency>
-		<!-- <dependency>
-			<groupId>org.apache.phoenix</groupId>
-			<artifactId>phoenix-core</artifactId>
-			<version>4.7.0-HBase-1.1</version>
-		</dependency>
-  		-->
-		<dependency>
-			<groupId>org.apache.hbase</groupId>
-			<artifactId>hbase-client</artifactId>
-			<version>${hbase.version}</version>
-		</dependency>
-
-		<dependency>
-			<groupId>org.apache.hbase</groupId>
-			<artifactId>hbase-common</artifactId>
-			<version>${hbase.version}</version>
-		</dependency>
-
-		<dependency>
-			<groupId>org.apache.hbase</groupId>
-			<artifactId>hbase-testing-util</artifactId>
-			<version>${hbase.version}</version>
-			<scope>test</scope>
-			<exclusions>
-				<exclusion>
-					<artifactId>avro</artifactId>
-					<groupId>org.apache.avro</groupId>
-				</exclusion>
-			</exclusions>
 		</dependency>
 
 		<dependency>
 			<groupId>org.apache.phoenix</groupId>
-			<artifactId>phoenix-server-client</artifactId>
+			<artifactId>phoenix-queryserver-client</artifactId>
 			<version>${hbase.phoenix.client.version}</version>
 		</dependency>
 		
@@ -198,6 +161,47 @@
 					<target>1.8</target>
 				</configuration>
 			</plugin>
+		
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-shade-plugin</artifactId>
+				<version>3.1.0</version>
+				<executions>
+					<execution>
+						<phase>package</phase>
+						<goals>
+							<goal>shade</goal>
+						</goals>
+						<configuration>
+							<filters>
+							    <filter>
+							        <artifact>*:*</artifact>
+							        <excludes>
+							            <exclude>META-INF/*.SF</exclude>
+							            <exclude>META-INF/*.DSA</exclude>
+							            <exclude>META-INF/*.RSA</exclude>
+							            <exclude>META-INF/LICENSE</exclude>
+							            <exclude>LICENSE</exclude> <!--if this is same as above, not required-->
+							            <exclude>/*.png</exclude>
+							            <exclude>/*.html</exclude>
+							            <exclude>/*.jpeg</exclude>
+							        </excludes>
+							    </filter>
+							</filters>
+							<minimizeJar>false</minimizeJar>
+							<shadedArtifactAttached>true</shadedArtifactAttached>
+							<artifactSet>
+								<includes>
+								<include>org.apache.htrace*</include>
+								<include>io.kafka.connect.phoenix*</include>
+								<include>org.apache.hbase:hbase-shaded-client*</include>
+								<include>org.apache.phoenix</include>
+								</includes>
+							</artifactSet>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>	
 		</plugins>
-</build>		
+	</build>		
 </project>
